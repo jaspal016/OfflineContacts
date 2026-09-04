@@ -106,7 +106,6 @@ textarea {
     background-color: #cbd5e1;
 }
 
-/* Disabled state for consistent button placement */
 .disabled-btn {
     opacity: 0.4;
     cursor: not-allowed !important;
@@ -149,7 +148,6 @@ textarea {
     cursor: pointer;
 }
 
-/* Version info tag style */
 .version-display {
     text-align: left;
     font-size: 0.8rem;
@@ -180,7 +178,7 @@ textarea {
     padding: 15px;
     display: flex;
     flex-direction: column;
-    max-height: 350px;
+    max-height: 400px;
 }
 
 .column h3 {
@@ -197,7 +195,7 @@ textarea {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
 
 .vcard-row {
@@ -216,19 +214,25 @@ textarea {
     letter-spacing: 0.5px;
 }
 
+/* Medium-sized textareas with scrollbars for editing long fields */
 .val-input {
-    padding: 6px 8px;
+    padding: 8px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     background: white;
     box-sizing: border-box;
     width: 100%;
+    min-height: 50px;
+    max-height: 100px;
+    resize: vertical;
+    font-family: monospace;
+    overflow-y: auto;
 }
 
-/* Executive report style for the right next-contact section */
+/* Executive report style for the right next-contact section (max 2 rows with ellipsis truncation) */
 .executive-report-line {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     padding: 6px 0;
     border-bottom: 1px solid #edf2f7;
     color: #2d3748;
@@ -237,10 +241,22 @@ textarea {
 .exec-label {
     font-weight: 600;
     color: #4a5568;
+    display: block;
+    margin-bottom: 2px;
 }
 
 .exec-val {
     color: #1a202c;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    word-break: break-all;
+    font-family: monospace;
+    background: #edf2f7;
+    padding: 4px 6px;
+    border-radius: 3px;
 }
 
 .end-of-contacts {
