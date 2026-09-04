@@ -18,17 +18,22 @@ body {
     min-height: 100vh;
 }
 
+/* Crucial fix: Hide all scenes by default, display active one as flex */
 .scene {
-    display: none;
+    display: none !important;
     width: 100%;
     justify-content: center;
     align-items: center;
     padding: 20px;
     box-sizing: border-box;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100vh;
 }
 
 .scene.active {
-    display: flex;
+    display: flex !important;
 }
 
 .card {
@@ -40,6 +45,7 @@ body {
     max-width: 500px;
     text-align: center;
     box-sizing: border-box;
+    z-index: 10;
 }
 
 .wide-card {
@@ -104,14 +110,34 @@ textarea {
     background-color: #cbd5e1;
 }
 
-/* Scene 2 Specific Styles */
-.scene2-header {
+.text-btn {
+    background: none;
+    border: none;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 0.9rem;
+    padding: 0;
+}
+
+.text-btn:hover {
+    text-decoration: underline;
+}
+
+/* Scene 2 & 3 Specific Styles */
+.scene2-header, .scene3-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
     font-size: 0.95rem;
     font-weight: bold;
+}
+
+.header-left-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
 .checkbox-container {
@@ -142,7 +168,7 @@ textarea {
     padding: 15px;
     display: flex;
     flex-direction: column;
-    max-height: 400px;
+    max-height: 350px;
 }
 
 .column h3 {
@@ -214,7 +240,6 @@ textarea {
     gap: 10px;
 }
 
-/* Scene 3 Results Styles */
 .download-container {
     display: flex;
     flex-direction: column;
