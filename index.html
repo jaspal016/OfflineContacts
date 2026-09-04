@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Calculator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <main class="calculator-card">
+        <h1>Offline Calculator</h1>
+        
+        <div class="input-group">
+            <input type="number" id="num1" placeholder="First number">
+            <input type="number" id="num2" placeholder="Second number">
+        </div>
+
+        <button id="calc-btn">Calculate</button>
+
+        <div id="result" class="result">Result: </div>
+    </main>
+
+    <button id="force-update-btn" title="Force load from server">🔄 Update from Server</button>
+
+    <script>
+        // Register the Service Worker for offline capability
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered!'))
+                    .catch(err => console.error('Service Worker registration failed:', err));
+            });
+        }
+
+        // Calculator Logic
+        document.getElementById('calc-btn').addEventListener('click', () => {
+            const n1 = parseFloat(document.getElementById('num1').value) || 0;
+            const n2 = parseFloat(document.getElementById('num2').value) || 0;
+            const sum = n1 + n2;
+            document.getElementById('result').textContent = `Result: ${sum}`;
+        });
+
+        // Force Server Load Button Logic
+        document.getElementById('force-update-btn').addEventListener('click', async () => {
+            if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                try {
+                    // Tell service worker to clear cache and reload
+                    const registration = await navigator.serviceWorker.ready;
+                    
+                    // Fetch the main page bypassing the HTTP cache
+                    await fetch(window.location.href, { cache: 'reload' });
+                    
+                    // Hard reload the page from the network
+                    window.location.reload(true);
+                } catch (err) {
+                    console.error('Failed to force update:', err);
+                    window.location.reload();
+                }
+            } else {
+                window.location.reload();
+            }
+        });
+    </script>
+</body>
+</html>
