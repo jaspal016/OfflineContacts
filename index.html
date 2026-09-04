@@ -87,7 +87,7 @@
         let contacts = []; 
         let currentIndex = 0;
 
-        // Standard VCF Key Mapping dictionary (case-insensitive keys)
+        // Standard VCF Key Mapping dictionary
         const KEY_LABELS = {
             'FN': 'Full Name',
             'N': 'Name Parts',
@@ -124,7 +124,6 @@
         };
 
         function getFriendlyLabel(key) {
-            // Strip parameters like TEL;TYPE=WORK -> TEL
             const baseKey = key.split(';')[0].toUpperCase();
             return KEY_LABELS[baseKey] || key;
         }
@@ -226,7 +225,6 @@
             const rows = document.querySelectorAll('#left-column-content .vcard-row');
             let newLines = ['BEGIN:VCARD'];
             
-            // Re-inject version line if it existed
             const contact = contacts[currentIndex];
             const versionLine = contact.rawLines.find(l => l.toUpperCase().startsWith('VERSION:'));
             if (versionLine) newLines.push(versionLine);
@@ -235,7 +233,9 @@
                 const key = row.getAttribute('data-key');
                 const valInput = row.querySelector('.val-input');
                 if (key && valInput) {
-                    newLines.push(`${key}:${valInput.value}`);
+                    // Clean up newline characters inside textarea values if user typed breaks
+                    const cleanVal = valInput.value.replace(/(\r\n|\n|\r)/gm, "");
+                    newLines.push(`${key}:${cleanVal}`);
                 }
             });
             newLines.push('END:VCARD');
@@ -260,15 +260,14 @@
                     container.innerHTML = `
                         <div class="vcard-row unparsable-row">
                             <span class="row-key">Raw Data</span>
-                            <input type="text" id="unparsable-input" class="val-input" value="${escapeHtml(contact.rawLines[0])}">
+                            <textarea id="unparsable-input" class="val-input">${escapeHtml(contact.rawLines[0])}</textarea>
                         </div>`;
                 } else {
-                    container.innerHTML = `<div class="executive-report-line">${escapeHtml(contact.rawLines[0])}</div>`;
+                    container.innerHTML = `<div class="executive-report-line"><span class="exec-val">${escapeHtml(contact.rawLines[0])}</span></div>`;
                 }
                 return;
             }
 
-            // Extract version string for separate non-editable view if editable column
             if (isEditable) {
                 const vLine = contact.rawLines.find(l => l.toUpperCase().startsWith('VERSION:'));
                 const versionDisplay = document.getElementById('vcard-version-display');
@@ -298,14 +297,13 @@
                     rowDiv.setAttribute('data-key', key);
                     rowDiv.innerHTML = `
                         <span class="row-key" title="${key}">${escapeHtml(friendlyKey)}</span>
-                        <input type="text" class="val-input" value="${escapeHtml(value)}">
+                        <textarea class="val-input">${escapeHtml(value)}</textarea>
                     `;
                     container.appendChild(rowDiv);
                 } else {
-                    // Executive report layout for next contact
                     const reportDiv = document.createElement('div');
                     reportDiv.className = 'executive-report-line';
-                    reportDiv.innerHTML = `<span class="exec-label">${escapeHtml(friendlyKey)}:</span> <span class="exec-val">${escapeHtml(value)}</span>`;
+                    reportDiv.innerHTML = `<span class="exec-label">${escapeHtml(friendlyKey)}:</span> <span class="exec-val" title="${escapeHtml(value)}">${escapeHtml(value)}</span>`;
                     container.appendChild(reportDiv);
                 }
             });
@@ -318,7 +316,6 @@
             renderColumnContent(currentIndex, 'left-column-content', true);
             renderColumnContent(currentIndex + 1, 'right-column-content', false);
 
-            // Button state logic: Both Previous and Next are always displayed, but enabled/disabled explicitly
             const prevBtn = document.getElementById('prev-btn');
             const nextBtn = document.getElementById('next-btn');
 
