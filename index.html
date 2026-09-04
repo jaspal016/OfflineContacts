@@ -3,58 +3,353 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Offline Calculator</title>
+    <title>Offline VCF Manager</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <main class="calculator-card">
-        <h1>Offline Calculator</h1>
-        
-        <div class="input-group">
-            <input type="number" id="num1" placeholder="First number">
-            <input type="number" id="num2" placeholder="Second number">
+    <!-- SCENE 1: Input & Dropzone -->
+    <div id="scene-1" class="scene active">
+        <div class="card">
+            <h1>VCF Contact Manager</h1>
+            <div id="drop-zone" class="drop-zone">
+                <p>📂 Drop .vcf file here or paste data below</p>
+                <input type="file" id="file-input" accept=".vcf" style="display:none">
+            </div>
+            <textarea id="vcf-input" placeholder="Paste raw VCF content here..."></textarea>
+            <button id="process-btn" class="primary-btn">Process</button>
         </div>
+    </div>
 
-        <button id="calc-btn">Calculate</button>
+    <!-- SCENE 2: Tabular Review & Editing -->
+    <div id="scene-2" class="scene">
+        <div class="card wide-card">
+            <div class="scene2-header">
+                <label class="checkbox-container">
+                    <input type="checkbox" id="current-check" checked>
+                    <span class="checkmark"></span> Include Contact in Checked Export
+                </label>
+                <span id="counter-indicator">Contact 1 of 1</span>
+            </div>
 
-        <div id="result" class="result">Result: </div>
-    </main>
+            <div class="comparison-grid">
+                <!-- Left Column: Current Editable Contact -->
+                <div class="column">
+                    <h3>Current Contact</h3>
+                    <div id="left-column-content" class="column-content"></div>
+                </div>
+                <!-- Right Column: Next Read-Only Contact -->
+                <div class="column">
+                    <h3>Next Contact (Read-Only)</h3>
+                    <div id="right-column-content" class="column-content"></div>
+                </div>
+            </div>
 
+            <div class="nav-buttons">
+                <button id="prev-btn" class="secondary-btn">Previous</button>
+                <button id="next-btn" class="secondary-btn">Next</button>
+                <button id="done-btn" class="primary-btn">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCENE 3: Results & Downloads -->
+    <div id="scene-3" class="scene">
+        <div class="card">
+            <h1>Processing Complete</h1>
+            <div id="download-links" class="download-container">
+                <!-- Dynamically populated download rows -->
+            </div>
+            <button id="restart-btn" class="secondary-btn" style="margin-top:20px;">Process Another File</button>
+        </div>
+    </div>
+
+    <!-- Force update button fixed at the bottom right corner -->
     <button id="force-update-btn" title="Force load from server">🔄 Update from Server</button>
 
     <script>
-        // Register the Service Worker for offline capability
+        // --- SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('Service Worker registered!'))
-                    .catch(err => console.error('Service Worker registration failed:', err));
+                navigator.serviceWorker.register('./sw.js').catch(err => console.error('SW registration failed:', err));
             });
         }
 
-        // Calculator Logic
-        document.getElementById('calc-btn').addEventListener('click', () => {
-            const n1 = parseFloat(document.getElementById('num1').value) || 0;
-            const n2 = parseFloat(document.getElementById('num2').value) || 0;
-            const sum = n1 + n2;
-            document.getElementById('result').textContent = `Result: ${sum}`;
+        // --- APP STATE ---
+        let contacts = []; // Array of contact objects containing lines/raw strings & checkbox status
+        let currentIndex = 0;
+
+        // --- SCENE NAVIGATION ---
+        function switchScene(sceneNumber) {
+            document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+            document.getElementById(`scene-${sceneNumber}`).classList.add('active');
+        }
+
+        // --- SCENE 1 LOGIC ---
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const vcfInput = document.getElementById('vcf-input');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#007bff'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = '#ccc'; });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#ccc';
+            if (e.dataTransfer.files.length) {
+                const reader = new FileReader();
+                reader.onload = (event) => { vcfInput.value = event.target.result; };
+                reader.readAsText(e.dataTransfer.files[0]);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                const reader = new FileReader();
+                reader.onload = (event) => { vcfInput.value = event.target.result; };
+                reader.readAsText(e.target.files[0]);
+            }
         });
 
-        // Force Server Load Button Logic
+        document.getElementById('process-btn').addEventListener('click', () => {
+            const rawText = vcfInput.value.trim();
+            if (!rawText) return alert('Please input or drop some VCF data first.');
+            parseVCF(rawText);
+            if (contacts.length === 0) return alert('No valid cards parsed.');
+            currentIndex = 0;
+            loadScene2Data();
+            switchScene(2);
+        });
+
+        // --- VCF PARSER ENGINE ---
+        function parseVCF(text) {
+            contacts = [];
+            // Normalize CRLF to LF
+            const lines = text.split(/\r?\n\s*/); // handles soft folding line breaks beginning with space/tab
+            let currentCardLines = [];
+            let insideCard = false;
+
+            for (let line of lines) {
+                const upperLine = line.toUpperCase();
+                if (upperLine.startsWith('BEGIN:VCARD')) {
+                    insideCard = true;
+                    currentCardLines = [line];
+                } else if (upperLine.startsWith('END:VCARD') && insideCard) {
+                    currentCardLines.push(line);
+                    contacts.push({
+                        rawLines: [...currentCardLines],
+                        checked: true
+                    });
+                    insideCard = false;
+                    currentCardLines = [];
+                } else if (insideCard) {
+                    currentCardLines.push(line);
+                } else if (line.trim() !== '') {
+                    // Random unparsable data block outside vcard blocks
+                    contacts.push({
+                        rawLines: [line],
+                        checked: true,
+                        isUnparsable: true
+                    });
+                }
+            }
+        }
+
+        // --- SCENE 2 LOGIC ---
+        function saveCurrentCardEdits() {
+            if (contacts.length === 0) return;
+            // Save checkbox status
+            contacts[currentIndex].checked = document.getElementById('current-check').checked;
+
+            if (contacts[currentIndex].isUnparsable) {
+                const inputElem = document.getElementById(`unparsable-input`);
+                if (inputElem) contacts[currentIndex].rawLines = [inputElem.value];
+                return;
+            }
+
+            // Save row values
+            const rows = document.querySelectorAll('#left-column-content .vcard-row');
+            let newLines = ['BEGIN:VCARD'];
+            rows.forEach(row => {
+                const key = row.getAttribute('data-key');
+                const valInput = row.querySelector('.val-input');
+                if (key && valInput) {
+                    newLines.push(`${key}:${valInput.value}`);
+                }
+            });
+            newLines.push('END:VCARD');
+            contacts[currentIndex].rawLines = newLines;
+        }
+
+        function renderColumnContent(contactIndex, containerId, isEditable) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+
+            if (contactIndex >= contacts.length) {
+                if (!isEditable) {
+                    container.innerHTML = `<div class="end-of-contacts">END OF CONTACTS</div>`;
+                }
+                return;
+            }
+
+            const contact = contacts[contactIndex];
+
+            if (contact.isUnparsable) {
+                if (isEditable) {
+                    container.innerHTML = `
+                        <div class="vcard-row unparsable-row">
+                            <span class="row-key">Raw Data</span>
+                            <input type="text" id="unparsable-input" class="val-input" value="${escapeHtml(contact.rawLines[0])}">
+                        </div>`;
+                } else {
+                    container.innerHTML = `
+                        <div class="vcard-row unparsable-row">
+                            <span class="row-key">Raw Data</span>
+                            <span class="row-val">${escapeHtml(contact.rawLines[0])}</span>
+                        </div>`;
+                }
+                return;
+            }
+
+            // Parse lines into Key-Value components, automatically adjusting cases
+            contact.rawLines.forEach(line => {
+                if (line.toUpperCase().startsWith('BEGIN:VCARD') || line.toUpperCase().startsWith('END:VCARD')) return;
+                
+                const colonIdx = line.indexOf(':');
+                if (colonIdx === -1) return;
+
+                let key = line.substring(0, colonIdx);
+                let value = line.substring(colonIdx + 1);
+
+                // Adjust upper/lower case automatically for visual cleanliness or pass through
+                // Keys remain non-editable as requested. Values are editable.
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'vcard-row';
+                rowDiv.setAttribute('data-key', key);
+
+                if (isEditable) {
+                    rowDiv.innerHTML = `
+                        <span class="row-key" title="${key}">${key}</span>
+                        <input type="text" class="val-input" value="${escapeHtml(value)}" data-orig-key="${key}">
+                    `;
+                } else {
+                    rowDiv.innerHTML = `
+                        <span class="row-key" title="${key}">${key}</span>
+                        <span class="row-val">${escapeHtml(value)}</span>
+                    `;
+                }
+                container.appendChild(rowDiv);
+            });
+        }
+
+        function loadScene2Data() {
+            // Save state of current card before switching index if needed (handled via event hooks, but safe here)
+            document.getElementById('current-check').checked = contacts[currentIndex].checked;
+            document.getElementById('counter-indicator').textContent = `Contact ${currentIndex + 1} of ${contacts.length}`;
+
+            // Render left column (editable current)
+            renderColumnContent(currentIndex, 'left-column-content', true);
+
+            // Render right column (read-only next)
+            renderColumnContent(currentIndex + 1, 'right-column-content', false);
+
+            // Button controls visibility
+            document.getElementById('prev-btn').style.display = currentIndex === 0 ? 'none' : 'inline-block';
+        }
+
+        document.getElementById('next-btn').addEventListener('click', () => {
+            saveCurrentCardEdits();
+            if (currentIndex < contacts.length - 1) {
+                currentIndex++;
+                loadScene2Data();
+            } else {
+                // If it's already the last contact, clicking next or done goes to summary, or let's go to Scene 3 on Done.
+                // Request states: "There are 3 buttons below these columns- Previous, Next, and Done. These buttons work exactly as their name implies."
+                currentIndex = Math.min(currentIndex + 1, contacts.length);
+                if (currentIndex >= contacts.length) {
+                    // Past the end triggers transition or handles cleanly
+                    triggerScene3();
+                } else {
+                    loadScene2Data();
+                }
+            }
+        });
+
+        document.getElementById('prev-btn').addEventListener('click', () => {
+            saveCurrentCardEdits();
+            if (currentIndex > 0) {
+                currentIndex--;
+                loadScene2Data();
+            }
+        });
+
+        document.getElementById('done-btn').addEventListener('click', () => {
+            saveCurrentCardEdits();
+            triggerScene3();
+        });
+
+        // --- SCENE 3 RESULTS LOGIC ---
+        function triggerScene3() {
+            const container = document.getElementById('download-links');
+            container.innerHTML = '';
+
+            const checkedContacts = contacts.filter(c => c.checked);
+            const uncheckedContacts = contacts.filter(c => !c.checked);
+
+            if (checkedContacts.length > 0) {
+                const checkedBlob = createVCFBlob(checkedContacts);
+                const checkedUrl = URL.createObjectURL(checkedBlob);
+                container.innerHTML += `
+                    <div class="download-row">
+                        <span>Checked Contacts (${checkedContacts.length})</span>
+                        <a href="${checkedUrl}" download="checked_contacts.vcf" class="primary-btn dl-btn">Download Checked VCF</a>
+                    </div>
+                `;
+            }
+
+            if (uncheckedContacts.length > 0) {
+                const uncheckedBlob = createVCFBlob(uncheckedContacts);
+                const uncheckedUrl = URL.createObjectURL(uncheckedBlob);
+                container.innerHTML += `
+                    <div class="download-row">
+                        <span>Unchecked Contacts (${uncheckedContacts.length})</span>
+                        <a href="${uncheckedUrl}" download="unchecked_contacts.vcf" class="secondary-btn dl-btn">Download Unchecked VCF</a>
+                    </div>
+                `;
+            }
+
+            switchScene(3);
+        }
+
+        function createVCFBlob(subset) {
+            let textOutput = '';
+            subset.forEach(c => {
+                if (c.isUnparsable) {
+                    textOutput += c.rawLines[0] + '\n';
+                } else {
+                    textOutput += c.rawLines.join('\n') + '\n';
+                }
+            });
+            return new Blob([textOutput], { type: 'text/vcard;charset=utf-8;' });
+        }
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            contacts = [];
+            currentIndex = 0;
+            vcfInput.value = '';
+            switchScene(1);
+        });
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // --- FORCE SERVER LOAD BUTTON LOGIC ---
         document.getElementById('force-update-btn').addEventListener('click', async () => {
             if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                 try {
-                    // Tell service worker to clear cache and reload
-                    const registration = await navigator.serviceWorker.ready;
-                    
-                    // Fetch the main page bypassing the HTTP cache
                     await fetch(window.location.href, { cache: 'reload' });
-                    
-                    // Hard reload the page from the network
                     window.location.reload(true);
                 } catch (err) {
-                    console.error('Failed to force update:', err);
                     window.location.reload();
                 }
             } else {
