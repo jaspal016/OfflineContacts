@@ -35,15 +35,18 @@
                 <span id="counter-indicator">Contact 1 of 1</span>
             </div>
 
+            <!-- Version tag displayed as normal text, uneditable -->
+            <div id="vcard-version-display" class="version-display"></div>
+
             <div class="comparison-grid">
                 <!-- Left Column: Current Editable Contact -->
                 <div class="column">
                     <h3>Current Contact</h3>
                     <div id="left-column-content" class="column-content"></div>
                 </div>
-                <!-- Right Column: Next Read-Only Contact -->
+                <!-- Right Column: Next Executive Report Contact -->
                 <div class="column">
-                    <h3>Next Contact (Read-Only)</h3>
+                    <h3>Next Contact</h3>
                     <div id="right-column-content" class="column-content"></div>
                 </div>
             </div>
@@ -62,11 +65,9 @@
             <div class="scene3-header-row">
                 <button id="reset-to-home-btn-3" class="text-btn" title="Back to Main Screen">🏠 Home</button>
                 <h1>Processing Complete</h1>
-                <div style="width: 50px;"></div> <!-- Spacer for alignment -->
+                <div style="width: 50px;"></div>
             </div>
-            <div id="download-links" class="download-container">
-                <!-- Dynamically populated download rows -->
-            </div>
+            <div id="download-links" class="download-container"></div>
             <button id="restart-btn" class="secondary-btn" style="margin-top:20px;">Process Another File</button>
         </div>
     </section>
@@ -85,6 +86,48 @@
         // --- APP STATE ---
         let contacts = []; 
         let currentIndex = 0;
+
+        // Standard VCF Key Mapping dictionary (case-insensitive keys)
+        const KEY_LABELS = {
+            'FN': 'Full Name',
+            'N': 'Name Parts',
+            'NICKNAME': 'Nickname',
+            'PHOTO': 'Photo',
+            'BDAY': 'Birthday',
+            'ANNIVERSARY': 'Anniversary',
+            'GENDER': 'Gender',
+            'ADR': 'Address',
+            'TEL': 'Telephone',
+            'EMAIL': 'Email',
+            'IMPP': 'Instant Messenger',
+            'LANG': 'Language',
+            'TZ': 'Time Zone',
+            'GEO': 'Geographic Position',
+            'TITLE': 'Title',
+            'ROLE': 'Role',
+            'LOGO': 'Logo',
+            'ORG': 'Organization',
+            'MEMBER': 'Member',
+            'RELATED': 'Related Identity',
+            'CATEGORIES': 'Categories',
+            'NOTE': 'Note',
+            'PRODID': 'Product Identifier',
+            'REV': 'Revision',
+            'SOUND': 'Sound',
+            'UID': 'Unique ID',
+            'CLIENTPIDMAP': 'Client PID Map',
+            'URL': 'URL',
+            'KEY': 'Public Key',
+            'FBURL': 'Free/Busy URL',
+            'CALURI': 'Calendar URL',
+            'CALADRURI': 'Calendar Address URL'
+        };
+
+        function getFriendlyLabel(key) {
+            // Strip parameters like TEL;TYPE=WORK -> TEL
+            const baseKey = key.split(';')[0].toUpperCase();
+            return KEY_LABELS[baseKey] || key;
+        }
 
         // --- SCENE NAVIGATION ---
         function switchScene(sceneNumber) {
@@ -182,11 +225,16 @@
 
             const rows = document.querySelectorAll('#left-column-content .vcard-row');
             let newLines = ['BEGIN:VCARD'];
+            
+            // Re-inject version line if it existed
+            const contact = contacts[currentIndex];
+            const versionLine = contact.rawLines.find(l => l.toUpperCase().startsWith('VERSION:'));
+            if (versionLine) newLines.push(versionLine);
+
             rows.forEach(row => {
                 const key = row.getAttribute('data-key');
                 const valInput = row.querySelector('.val-input');
                 if (key && valInput) {
-                    // Automatically adjust upper/lower case behavior or preserve input structure
                     newLines.push(`${key}:${valInput.value}`);
                 }
             });
@@ -215,40 +263,51 @@
                             <input type="text" id="unparsable-input" class="val-input" value="${escapeHtml(contact.rawLines[0])}">
                         </div>`;
                 } else {
-                    container.innerHTML = `
-                        <div class="vcard-row unparsable-row">
-                            <span class="row-key">Raw Data</span>
-                            <span class="row-val">${escapeHtml(contact.rawLines[0])}</span>
-                        </div>`;
+                    container.innerHTML = `<div class="executive-report-line">${escapeHtml(contact.rawLines[0])}</div>`;
                 }
                 return;
             }
 
+            // Extract version string for separate non-editable view if editable column
+            if (isEditable) {
+                const vLine = contact.rawLines.find(l => l.toUpperCase().startsWith('VERSION:'));
+                const versionDisplay = document.getElementById('vcard-version-display');
+                if (vLine) {
+                    const vVal = vLine.split(':')[1] || '';
+                    versionDisplay.textContent = `vCard Standard Version: ${vVal.trim()}`;
+                    versionDisplay.style.display = 'block';
+                } else {
+                    versionDisplay.style.display = 'none';
+                }
+            }
+
             contact.rawLines.forEach(line => {
-                if (line.toUpperCase().startsWith('BEGIN:VCARD') || line.toUpperCase().startsWith('END:VCARD')) return;
+                const upper = line.toUpperCase();
+                if (upper.startsWith('BEGIN:VCARD') || upper.startsWith('END:VCARD') || upper.startsWith('VERSION:')) return;
                 
                 const colonIdx = line.indexOf(':');
                 if (colonIdx === -1) return;
 
                 let key = line.substring(0, colonIdx);
                 let value = line.substring(colonIdx + 1);
-
-                const rowDiv = document.createElement('div');
-                rowDiv.className = 'vcard-row';
-                rowDiv.setAttribute('data-key', key);
+                let friendlyKey = getFriendlyLabel(key);
 
                 if (isEditable) {
+                    const rowDiv = document.createElement('div');
+                    rowDiv.className = 'vcard-row';
+                    rowDiv.setAttribute('data-key', key);
                     rowDiv.innerHTML = `
-                        <span class="row-key" title="${key}">${key}</span>
+                        <span class="row-key" title="${key}">${escapeHtml(friendlyKey)}</span>
                         <input type="text" class="val-input" value="${escapeHtml(value)}">
                     `;
+                    container.appendChild(rowDiv);
                 } else {
-                    rowDiv.innerHTML = `
-                        <span class="row-key" title="${key}">${key}</span>
-                        <span class="row-val">${escapeHtml(value)}</span>
-                    `;
+                    // Executive report layout for next contact
+                    const reportDiv = document.createElement('div');
+                    reportDiv.className = 'executive-report-line';
+                    reportDiv.innerHTML = `<span class="exec-label">${escapeHtml(friendlyKey)}:</span> <span class="exec-val">${escapeHtml(value)}</span>`;
+                    container.appendChild(reportDiv);
                 }
-                container.appendChild(rowDiv);
             });
         }
 
@@ -259,22 +318,38 @@
             renderColumnContent(currentIndex, 'left-column-content', true);
             renderColumnContent(currentIndex + 1, 'right-column-content', false);
 
-            document.getElementById('prev-btn').style.display = currentIndex === 0 ? 'none' : 'inline-block';
+            // Button state logic: Both Previous and Next are always displayed, but enabled/disabled explicitly
+            const prevBtn = document.getElementById('prev-btn');
+            const nextBtn = document.getElementById('next-btn');
+
+            if (currentIndex === 0) {
+                prevBtn.disabled = true;
+                prevBtn.classList.add('disabled-btn');
+            } else {
+                prevBtn.disabled = false;
+                prevBtn.classList.remove('disabled-btn');
+            }
+
+            if (currentIndex >= contacts.length - 1) {
+                nextBtn.disabled = true;
+                nextBtn.classList.add('disabled-btn');
+            } else {
+                nextBtn.disabled = false;
+                nextBtn.classList.remove('disabled-btn');
+            }
         }
 
         document.getElementById('next-btn').addEventListener('click', () => {
-            saveCurrentCardEdits();
             if (currentIndex < contacts.length - 1) {
+                saveCurrentCardEdits();
                 currentIndex++;
                 loadScene2Data();
-            } else {
-                triggerScene3();
             }
         });
 
         document.getElementById('prev-btn').addEventListener('click', () => {
-            saveCurrentCardEdits();
             if (currentIndex > 0) {
+                saveCurrentCardEdits();
                 currentIndex--;
                 loadScene2Data();
             }
