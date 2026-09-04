@@ -214,17 +214,27 @@ textarea {
     letter-spacing: 0.5px;
 }
 
-/* Medium-sized textareas with scrollbars for editing long fields */
+/* Original compact single-line input style for normal text fields */
 .val-input {
-    padding: 8px;
+    padding: 6px 8px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    font-size: 0.85rem;
+    font-size: 0.9rem;
     background: white;
     box-sizing: border-box;
     width: 100%;
-    min-height: 50px;
-    max-height: 100px;
+}
+
+/* Medium scrollable textarea only for long fields like Base64 photos */
+.val-textarea {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    background: white;
+    box-sizing: border-box;
+    width: 100%;
+    height: 70px;
     resize: vertical;
     font-family: monospace;
     overflow-y: auto;
