@@ -16,24 +16,28 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-}
-
-/* Crucial fix: Hide all scenes by default, display active one as flex */
-.scene {
-    display: none !important;
-    width: 100%;
-    justify-content: center;
-    align-items: center;
     padding: 20px;
     box-sizing: border-box;
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100vh;
+}
+
+/* Ensure hidden scenes are fully removed from layout flow */
+.scene {
+    display: none;
+    width: 100%;
+    max-width: 500px;
+    justify-content: center;
+    align-items: center;
+    box-sizing: border-box;
 }
 
 .scene.active {
-    display: flex !important;
+    display: flex;
+    justify-content: center;
+}
+
+/* Make Scene 2 wider card layout adapt properly */
+#scene-2.scene.active {
+    max-width: 900px;
 }
 
 .card {
@@ -42,14 +46,8 @@ body {
     border-radius: 10px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     width: 100%;
-    max-width: 500px;
     text-align: center;
     box-sizing: border-box;
-    z-index: 10;
-}
-
-.wide-card {
-    max-width: 900px;
 }
 
 h1 {
@@ -124,7 +122,7 @@ textarea {
     text-decoration: underline;
 }
 
-/* Scene 2 & 3 Specific Styles */
+/* Scene 2 & 3 Header adjustments */
 .scene2-header, .scene3-header-row {
     display: flex;
     justify-content: space-between;
