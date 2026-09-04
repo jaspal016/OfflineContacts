@@ -20,7 +20,6 @@ body {
     box-sizing: border-box;
 }
 
-/* Ensure hidden scenes are fully removed from layout flow */
 .scene {
     display: none;
     width: 100%;
@@ -35,7 +34,6 @@ body {
     justify-content: center;
 }
 
-/* Make Scene 2 wider card layout adapt properly */
 #scene-2.scene.active {
     max-width: 900px;
 }
@@ -108,6 +106,13 @@ textarea {
     background-color: #cbd5e1;
 }
 
+/* Disabled state for consistent button placement */
+.disabled-btn {
+    opacity: 0.4;
+    cursor: not-allowed !important;
+    pointer-events: none;
+}
+
 .text-btn {
     background: none;
     border: none;
@@ -122,12 +127,11 @@ textarea {
     text-decoration: underline;
 }
 
-/* Scene 2 & 3 Header adjustments */
 .scene2-header, .scene3-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     font-size: 0.95rem;
     font-weight: bold;
 }
@@ -143,6 +147,16 @@ textarea {
     align-items: center;
     gap: 8px;
     cursor: pointer;
+}
+
+/* Version info tag style */
+.version-display {
+    text-align: left;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 15px;
+    font-weight: bold;
+    font-family: monospace;
 }
 
 .comparison-grid {
@@ -196,15 +210,13 @@ textarea {
     font-weight: bold;
     color: #475569;
     margin-bottom: 2px;
-    font-family: monospace;
+    font-family: sans-serif;
     font-size: 0.75rem;
     text-transform: uppercase;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    letter-spacing: 0.5px;
 }
 
-.val-input, .row-val {
+.val-input {
     padding: 6px 8px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
@@ -214,10 +226,21 @@ textarea {
     width: 100%;
 }
 
-.row-val {
-    background: #edf2f7;
+/* Executive report style for the right next-contact section */
+.executive-report-line {
+    font-size: 0.9rem;
+    padding: 6px 0;
+    border-bottom: 1px solid #edf2f7;
+    color: #2d3748;
+}
+
+.exec-label {
+    font-weight: 600;
     color: #4a5568;
-    word-break: break-all;
+}
+
+.exec-val {
+    color: #1a202c;
 }
 
 .end-of-contacts {
