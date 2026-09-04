@@ -218,7 +218,7 @@
 
             if (contacts[currentIndex].isUnparsable) {
                 const inputElem = document.getElementById(`unparsable-input`);
-                if (inputElem) contacts[currentIndex].rawLines = [inputElem.value];
+                if (inputElem) contacts[currentIndex].rawLines = [inputElem.value.replace(/(\r\n|\n|\r)/gm, "")];
                 return;
             }
 
@@ -231,9 +231,8 @@
 
             rows.forEach(row => {
                 const key = row.getAttribute('data-key');
-                const valInput = row.querySelector('.val-input');
+                const valInput = row.querySelector('.val-input, .val-textarea');
                 if (key && valInput) {
-                    // Clean up newline characters inside textarea values if user typed breaks
                     const cleanVal = valInput.value.replace(/(\r\n|\n|\r)/gm, "");
                     newLines.push(`${key}:${cleanVal}`);
                 }
@@ -257,10 +256,15 @@
 
             if (contact.isUnparsable) {
                 if (isEditable) {
+                    const isLong = contact.rawLines[0].length > 60;
+                    const inputElement = isLong 
+                        ? `<textarea id="unparsable-input" class="val-textarea">${escapeHtml(contact.rawLines[0])}</textarea>`
+                        : `<input type="text" id="unparsable-input" class="val-input" value="${escapeHtml(contact.rawLines[0])}">`;
+
                     container.innerHTML = `
                         <div class="vcard-row unparsable-row">
                             <span class="row-key">Raw Data</span>
-                            <textarea id="unparsable-input" class="val-input">${escapeHtml(contact.rawLines[0])}</textarea>
+                            ${inputElement}
                         </div>`;
                 } else {
                     container.innerHTML = `<div class="executive-report-line"><span class="exec-val">${escapeHtml(contact.rawLines[0])}</span></div>`;
@@ -290,14 +294,21 @@
                 let key = line.substring(0, colonIdx);
                 let value = line.substring(colonIdx + 1);
                 let friendlyKey = getFriendlyLabel(key);
+                let isLongField = value.length > 60;
 
                 if (isEditable) {
                     const rowDiv = document.createElement('div');
                     rowDiv.className = 'vcard-row';
                     rowDiv.setAttribute('data-key', key);
+                    
+                    // Use a single-line input for normal texts, and a medium scrollable textarea only for long fields
+                    const inputFieldHtml = isLongField
+                        ? `<textarea class="val-textarea">${escapeHtml(value)}</textarea>`
+                        : `<input type="text" class="val-input" value="${escapeHtml(value)}">`;
+
                     rowDiv.innerHTML = `
                         <span class="row-key" title="${key}">${escapeHtml(friendlyKey)}</span>
-                        <textarea class="val-input">${escapeHtml(value)}</textarea>
+                        ${inputFieldHtml}
                     `;
                     container.appendChild(rowDiv);
                 } else {
